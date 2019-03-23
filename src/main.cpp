@@ -73,6 +73,130 @@
 #include <wx/stackwalk.h>
 #include <wx/utils.h>
 
+#define StartupLog(a) std::cout<<L"startup log"<<L ## a << std::endl
+namespace config {
+	agi::Options *opt = nullptr;
+	agi::MRUManager *mru = nullptr;
+	agi::Path *path = nullptr;
+	Automation4::AutoloadScriptManager *global_scripts;
+}
+
+
+AegisubApp g_app;
+AegisubApp& wxGetApp() {
+    return g_app;
+}
+static const char *LastStartupState = nullptr;
+
+AegisubApp::AegisubApp(): context(agi::make_unique<agi::Context>()) {
+}
+
+
+
+/// Message displayed when an exception has occurred.
+static wxString exception_message = "Oops, Aegisub has crashed!\n\nAn attempt has been made to save a copy of your file to:\n\n%s\n\nAegisub will now close.";
+
+
+agi::Context& AegisubApp::NewProjectContext() {
+	return *context;
+}
+/// @brief Gets called when application starts.
+/// @return bool
+bool AegisubApp::OnInit() {
+        config::path = new agi::Path;
+        agi::dispatch::Init([](agi::dispatch::Thunk f) { });
+	agi::log::log = new agi::log::LogSink;
+#ifdef _DEBUG
+	agi::log::log->Subscribe(agi::make_unique<agi::log::EmitSTDOUT>());
+#endif
+       auto conf_local(config::path->Decode("./config.json"));
+       std::unique_ptr<std::istream> localConfig(agi::io::Open(conf_local));
+	config::opt = new agi::Options(conf_local, GET_DEFAULT_CONFIG(default_config));
+
+	// Set config file
+
+	StartupLog("Inside OnInit");
+	try {
+		// Initialize randomizer
+		StartupLog("Initialize random generator");
+		srand(time(nullptr));
+
+		// locale for loading options
+		StartupLog("Set initial locale");
+		setlocale(LC_NUMERIC, "C");
+		setlocale(LC_CTYPE, "C");
+
+
+
+
+
+
+		exception_message = _("Oops, Aegisub has crashed!\n\nAn attempt has been made to save a copy of your file to:\n\n%s\n\nAegisub will now close.");
+
+		// Load plugins
+		Automation4::ScriptFactory::Register(agi::make_unique<Automation4::LuaScriptFactory>());
+		libass::CacheFonts();
+
+		// Load Automation scripts
+		StartupLog("Load global Automation scripts");
+		//config::global_scripts = new Automation4::AutoloadScriptManager(OPT_GET("Path/Automation/Autoload")->GetString());
+		config::global_scripts = new Automation4::AutoloadScriptManager("automation/autoload");
+
+		// Load export filters
+		StartupLog("Register export filters");
+		AssExportFilterChain::Register(agi::make_unique<AssFixStylesFilter>());
+		AssExportFilterChain::Register(agi::make_unique<AssTransformFramerateFilter>());
+
+
+	}
+	catch (agi::Exception const& e) {
+                
+		StartupLog("exception");
+		return false;
+	}
+	catch (std::exception const& e) {
+                
+		StartupLog("exception");
+		return false;
+	}
+
+	StartupLog("Initialization complete");
+	return true;
+}
+
+int AegisubApp::OnExit() {
+	delete config::opt;
+	delete config::global_scripts;
+
+	AssExportFilterChain::Clear();
+
+	// Keep this last!
+	delete agi::log::log;
+	crash_writer::Cleanup();
+
+	return 0;
+}
+
+int main(int argc, char **argv) {
+    AegisubApp app;
+    app.OnInit();
+    //std::unique_ptr<agi::Context> context(agi::make_unique<agi::Context>());
+    app.context->project->LoadSubtitles("./example.ass");
+    std::cout << "start execute command" << std::endl;
+    
+    //cmd::call("haha", NULL);
+    cmd::Command* mycmd = cmd::get("automation/lua/kara-templater/Apply karaoke template");
+    cmd::call("automation/lua/kara-templater/Apply karaoke template", app.context.get());
+    std::cout << mycmd << std::endl;
+
+    std::cout << "finish execute command" << std::endl;
+    app.OnExit();
+    
+    return 0;
+}
+
+
+/*
 namespace config {
 	agi::Options *opt = nullptr;
 	agi::MRUManager *mru = nullptr;
@@ -485,3 +609,5 @@ void AegisubApp::OpenFiles(wxArrayStringsAdapter filenames) {
 	if (!files.empty())
 		frames[0]->context->project->LoadList(files);
 }
+
+*/

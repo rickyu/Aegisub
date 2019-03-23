@@ -39,7 +39,24 @@ class FrameMain;
 namespace agi {
 	struct Context;
 }
+class FrameMain;
 
+class AegisubApp  {
+public:
+	std::unique_ptr<agi::Context> context;
+    friend class FrameMain;
+    FrameMain *frame = nullptr;
+	bool OnInit() ;
+	int OnExit() ;
+	int OnRun() ;
+	AegisubApp();
+	AegisubLocale locale;
+	agi::Context& NewProjectContext();
+	void CloseAll() {}
+
+};
+AegisubApp& wxGetApp();
+/*
 class AegisubApp : public wxApp {
 	friend class FrameMain;
 
@@ -74,3 +91,5 @@ public:
 };
 
 wxDECLARE_APP(AegisubApp);
+
+*/
