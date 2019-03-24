@@ -43,7 +43,7 @@ class FrameMain;
 
 class AegisubApp  {
 public:
-	std::unique_ptr<agi::Context> context;
+	//std::unique_ptr<agi::Context> context;
     friend class FrameMain;
     FrameMain *frame = nullptr;
 	bool OnInit() ;

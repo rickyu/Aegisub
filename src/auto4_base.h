@@ -117,6 +117,7 @@ namespace Automation4 {
 
 	/// A wrapper around agi::ProgressSink which adds the ability to open
 	/// dialogs on the GUI thread
+	/*
 	class ProgressSink final : public agi::ProgressSink {
 		agi::ProgressSink *impl;
 		BackgroundScriptRunner *bsr;
@@ -140,6 +141,34 @@ namespace Automation4 {
 
 		ProgressSink(agi::ProgressSink *impl, BackgroundScriptRunner *bsr);
 	};
+        */
+
+	/// A wrapper around agi::ProgressSink which adds the ability to open
+	/// dialogs on the GUI thread
+	class ProgressSink final : public agi::ProgressSink {
+		int trace_level;
+	public:
+		void SetIndeterminate() override {  }
+		void SetTitle(std::string const& title) override { std::cout << "Progress:Title"<<title<<std::endl; }
+		void SetMessage(std::string const& msg) override {  std::cout << "Progress:Message"<<msg<<std::endl; }
+		void SetProgress(int64_t cur, int64_t max) override { std::cout << "Progress:SetProgress"<<cur<<":"<<max<<std::endl; }
+		void Log(std::string const& str) override { std::cout << "Log:" << str << std::endl; }
+		bool IsCancelled() override { return false; }
+
+		/// Show the passed dialog on the GUI thread, blocking the calling
+		/// thread until it closes
+
+		/// Get the current automation trace level
+		int GetTraceLevel() const { return trace_level; }
+		void ShowDialog(ScriptDialog *config_dialog) {}
+		int ShowDialog(wxDialog *dialog) { return 0;}
+		wxWindow *GetParentWindow() const { return NULL;}
+
+
+
+		ProgressSink(agi::ProgressSink *impl, BackgroundScriptRunner *bsr) {}
+	};
+
 
 	class Script {
 		agi::fs::path filename;

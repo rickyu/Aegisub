@@ -88,7 +88,8 @@ AegisubApp& wxGetApp() {
 }
 static const char *LastStartupState = nullptr;
 
-AegisubApp::AegisubApp(): context(agi::make_unique<agi::Context>()) {
+AegisubApp::AegisubApp()
+{
 }
 
 
@@ -98,7 +99,8 @@ static wxString exception_message = "Oops, Aegisub has crashed!\n\nAn attempt ha
 
 
 agi::Context& AegisubApp::NewProjectContext() {
-	return *context;
+    std::unique_ptr<agi::Context> context(agi::make_unique<agi::Context>());
+    return *context;
 }
 /// @brief Gets called when application starts.
 /// @return bool
@@ -180,14 +182,19 @@ int AegisubApp::OnExit() {
 int main(int argc, char **argv) {
     AegisubApp app;
     app.OnInit();
-    //std::unique_ptr<agi::Context> context(agi::make_unique<agi::Context>());
-    app.context->project->LoadSubtitles("./example.ass");
+    std::unique_ptr<agi::Context> context(agi::make_unique<agi::Context>());
+    context->project->LoadSubtitles("./example.ass");
     std::cout << "start execute command" << std::endl;
     
     //cmd::call("haha", NULL);
     cmd::Command* mycmd = cmd::get("automation/lua/kara-templater/Apply karaoke template");
-    cmd::call("automation/lua/kara-templater/Apply karaoke template", app.context.get());
-    std::cout << mycmd << std::endl;
+    std::cout << "cmd address is " << mycmd << std::endl;
+    try {
+    cmd::call("automation/lua/kara-templater/Apply karaoke template", context.get());
+    }
+    catch(...) {
+      std::cout<<"exception while call cmd" << std::endl;
+    }
 
     std::cout << "finish execute command" << std::endl;
     app.OnExit();

@@ -767,6 +767,34 @@ namespace {
 
 		return result;
 	}
+        void LuaCall(lua_State *L, int nargs, int nresults) 
+        {
+		bool failed = false;
+                ProgressSink progress_sink(NULL, NULL);
+                ProgressSink* ps = &progress_sink;
+                
+		LuaProgressSink lps(L, ps, false);
+			// Insert our error handler under the function to call
+			lua_pushcclosure(L, add_stack_trace, 0);
+			lua_insert(L, -nargs - 2);
+
+			if (lua_pcall(L, nargs, nresults, -nargs - 2)) {
+				if (!lua_isnil(L, -1)) {
+					// if the call failed, log the error here
+					ps->Log("\n\nLua reported a runtime error:\n");
+					ps->Log(get_string_or_default(L, -1));
+				}
+				lua_pop(L, 2);
+				failed = true;
+			}
+			else
+				lua_remove(L, -nresults - 1);
+
+			lua_gc(L, LUA_GCCOLLECT, 0);
+		if (failed)
+			throw agi::UserCancelException("Script threw an error");
+
+        }
 
 	void LuaCommand::operator()(agi::Context *c)
 	{
@@ -787,7 +815,8 @@ namespace {
 		push_value(L, original_active);
 
 		try {
-			LuaThreadedCall(L, 3, 2, from_wx(StrDisplay(c)), c->parent, true);
+			//LuaThreadedCall(L, 3, 2, from_wx(StrDisplay(c)), c->parent, true);
+			LuaCall(L, 3, 2);
 		}
 		catch (agi::UserCancelException const&) {
 			subsobj->Cancel();

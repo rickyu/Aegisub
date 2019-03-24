@@ -63,6 +63,7 @@
 namespace Automation4 {
 	bool CalculateTextExtents(AssStyle *style, std::string const& text, double &width, double &height, double &descent, double &extlead)
 	{
+                std::cout << "CalculateTextExtents::string="<<text<<std::endl;
 		width = height = descent = extlead = 0;
 
 		double fontsize = style->fontsize * 64;
@@ -198,6 +199,7 @@ namespace Automation4 {
 			c->ass->Properties.automation_settings[GetScriptSettingsIdentifier()] = config_dialog->Serialise();
 	}
 
+/*
 	// ProgressSink
 	ProgressSink::ProgressSink(agi::ProgressSink *impl, BackgroundScriptRunner *bsr)
 	: impl(impl)
@@ -227,6 +229,7 @@ namespace Automation4 {
 		agi::dispatch::Main().Sync([&] { ret = dialog->ShowModal(); });
 		return ret;
 	}
+  */
 
 	BackgroundScriptRunner::BackgroundScriptRunner(wxWindow *parent, std::string const& title)
 	: impl(new DialogProgress(parent, to_wx(title)))
