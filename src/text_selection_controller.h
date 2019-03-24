@@ -44,3 +44,33 @@ public:
 
 	DEFINE_SIGNAL_ADDERS(AnnounceSelectionChanged, AddSelectionListener)
 };
+
+/*
+class TextSelectionController {
+	int selection_start = 0;
+	int selection_end = 0;
+	int insertion_point = 0;
+	bool changing = false;
+
+	wxStyledTextCtrl *ctrl = nullptr;
+
+	void UpdateUI(wxStyledTextEvent &evt);
+
+	agi::signal::Signal<> AnnounceSelectionChanged;
+
+public:
+	void SetSelection(int start, int end);
+	void SetInsertionPoint(int point);
+
+	int GetSelectionStart() const { return selection_start; }
+	int GetSelectionEnd() const { return selection_end; }
+	int GetInsertionPoint() const { return insertion_point; }
+
+	void SetControl(wxStyledTextCtrl *ctrl);
+	~TextSelectionController();
+
+	DEFINE_SIGNAL_ADDERS(AnnounceSelectionChanged, AddSelectionListener)
+};
+*/
+
+

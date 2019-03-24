@@ -13,7 +13,76 @@
 // OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 //
 // Aegisub Project http://www.aegisub.org/
+#include <libaegisub/fs_fwd.h>
+#include <libaegisub/signal.h>
 
+#include <boost/container/list.hpp>
+#include <boost/filesystem/path.hpp>
+#include <wx/timer.h>
+
+
+#include <memory>
+
+class AssFile;
+class AudioBox;
+class AudioController;
+class AssDialogue;
+class AudioKaraoke;
+class DialogManager;
+class FrameMain;
+class Project;
+class SearchReplaceEngine;
+class InitialLineState;
+class SelectionController;
+class SubsController;
+class BaseGrid;
+class TextSelectionController;
+class VideoController;
+class VideoDisplay;
+class wxWindow;
+namespace Automation4 { class ScriptManager; }
+
+
+namespace agi {
+class Path;
+
+struct Context {
+	// Note: order here matters quite a bit, as things need to be set up and
+    // torn down in the correct order
+	std::unique_ptr<AssFile> ass;
+	std::unique_ptr<TextSelectionController> textSelectionController;
+	std::unique_ptr<SubsController> subsController;
+	std::unique_ptr<Project> project;
+	std::unique_ptr<Automation4::ScriptManager> local_scripts;
+	std::unique_ptr<SelectionController> selectionController;
+	std::unique_ptr<VideoController> videoController;
+	std::unique_ptr<AudioController> audioController;
+	std::unique_ptr<InitialLineState> initialLineState;
+	std::unique_ptr<SearchReplaceEngine> search;
+	std::unique_ptr<Path> path;
+
+	// Things that should probably be in some sort of UI-context-model
+	wxWindow *parent = nullptr;
+	wxWindow *previousFocus = nullptr;
+	wxWindow *videoSlider = nullptr;
+
+	// Views (i.e. things that should eventually not be here at all)
+	AudioBox *audioBox = nullptr;
+	AudioKaraoke *karaoke = nullptr;
+	BaseGrid *subsGrid = nullptr;
+	std::unique_ptr<DialogManager> dialog;
+	FrameMain *frame = nullptr;
+	VideoDisplay *videoDisplay = nullptr;
+
+	Context();
+	~Context();
+};
+
+}
+
+
+
+/*
 #include <memory>
 
 class AssFile;
@@ -71,3 +140,4 @@ struct Context {
 };
 
 }
+*/

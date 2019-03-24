@@ -20,6 +20,39 @@
 
 void TextSelectionController::SetControl(wxStyledTextCtrl *ctrl) {
 	this->ctrl = ctrl;
+}
+
+TextSelectionController::~TextSelectionController() {
+}
+
+#define GET(var, new_value) do { \
+	int tmp = new_value;      \
+	if (tmp != var) {         \
+		var = tmp;            \
+		changed = true;       \
+	}                         \
+} while(false)
+
+#define SET(var, new_value, Setter) do { \
+	if (var != new_value) {              \
+		var = new_value;                 \
+		if (ctrl) ctrl->Setter(var);     \
+	}                                    \
+} while (false)
+
+void TextSelectionController::UpdateUI(wxStyledTextEvent &evt) {
+}
+
+void TextSelectionController::SetInsertionPoint(int position) {
+}
+
+void TextSelectionController::SetSelection(int start, int end) {
+}
+
+/*
+
+void TextSelectionController::SetControl(wxStyledTextCtrl *ctrl) {
+	this->ctrl = ctrl;
 	if (ctrl)
 		ctrl->Bind(wxEVT_STC_UPDATEUI, &TextSelectionController::UpdateUI, this);
 }
@@ -73,3 +106,5 @@ void TextSelectionController::SetSelection(int start, int end) {
 	changing = false;
 	AnnounceSelectionChanged();
 }
+*/
+
