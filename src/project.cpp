@@ -116,7 +116,6 @@ bool Project::DoLoadSubtitles(agi::fs::path const& path, std::string encoding, P
 		// distinguish them based on filename alone, and just ignore failures
 		// rather than trying to differentiate between malformed timecodes
 		// files and things that aren't timecodes files at all
-		std::cout << "DoLoadSubtitles::encoding=" << encoding << std::endl;
 		try { DoLoadTimecodes(path); return false; } catch (...) { }
 		try { DoLoadKeyframes(path); return false; } catch (...) { }
 	}
@@ -157,8 +156,6 @@ bool Project::DoLoadSubtitles(agi::fs::path const& path, std::string encoding, P
 void Project::LoadSubtitles(agi::fs::path path, std::string encoding, bool load_linked) {
 	ProjectProperties properties;
 	if (DoLoadSubtitles(path, encoding, properties) && load_linked) {
-                std::cout << "load failed, start LoadUnloadFiles" << std::endl;
-                std::cout.flush();
 		LoadUnloadFiles(properties);
         }
 }
@@ -172,7 +169,6 @@ void Project::CloseSubtitles() {
 }
 
 void Project::LoadUnloadFiles(ProjectProperties properties) {
-        return;
 	auto load_linked = OPT_GET("App/Auto/Load Linked Files")->GetInt();
 	if (!load_linked) return;
 
