@@ -24,7 +24,6 @@
 #include <boost/filesystem/path.hpp>
 #include <boost/range/algorithm/remove_if.hpp>
 #include <chrono>
-
 namespace agi { namespace log {
 
 /// Global log sink.
@@ -34,6 +33,29 @@ LogSink *log;
 /// Keep this ordered the same as Severity
 const char *Severity_ID = "EAWID";
 
+LogSink::LogSink()   { }
+
+LogSink::~LogSink() {
+	// The destructor for emitters may try to log messages, so disable all the
+	// emitters before destructing any
+}
+
+void LogSink::Log(SinkMessage const& sm) {
+   std::cout << sm.time << "\t" << sm.file << ":" << sm.line << "\t" << sm.message << std::endl;
+}
+
+void LogSink::Subscribe(std::unique_ptr<Emitter> em) {
+}
+
+void LogSink::Unsubscribe(Emitter *em) {
+}
+
+decltype(LogSink::messages) LogSink::GetMessages() const {
+	decltype(messages) ret;
+        return ret;
+}
+
+/*
 LogSink::LogSink() : queue(dispatch::Create()) { }
 
 LogSink::~LogSink() {
@@ -80,6 +102,7 @@ decltype(LogSink::messages) LogSink::GetMessages() const {
 	});
 	return ret;
 }
+*/
 
 Message::Message(const char *section, Severity severity, const char *file, const char *func, int line)
 : msg(buffer, sizeof buffer)
