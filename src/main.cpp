@@ -74,6 +74,261 @@
 #include <wx/utils.h>
 
 #define StartupLog(a) std::cout<<L"startup log"<<L ## a << std::endl
+
+namespace config {
+	agi::Options *opt = nullptr;
+	agi::MRUManager *mru = nullptr;
+	agi::Path *path = nullptr;
+	Automation4::AutoloadScriptManager *global_scripts;
+}
+
+wxIMPLEMENT_APP(AegisubApp);
+
+static const char *LastStartupState = nullptr;
+
+
+void AegisubApp::OnAssertFailure(const wxChar *file, int line, const wxChar *func, const wxChar *cond, const wxChar *msg) {
+std::cout << msg << std::endl;
+}
+
+AegisubApp::AegisubApp() {
+	// http://trac.wxwidgets.org/ticket/14302
+	//wxSetEnv("UBUNTU_MENUPROXY", "0");
+}
+
+namespace {
+wxDEFINE_EVENT(EVT_CALL_THUNK, ValueEvent<agi::dispatch::Thunk>);
+}
+
+/// Message displayed when an exception has occurred.
+static wxString exception_message = "Oops, Aegisub has crashed!\n\nAn attempt has been made to save a copy of your file to:\n\n%s\n\nAegisub will now close.";
+
+/// @brief Gets called when application starts.
+/// @return bool
+bool AegisubApp::OnInit() {
+        config::path = new agi::Path;
+        agi::dispatch::Init([](agi::dispatch::Thunk f) { });
+	agi::log::log = new agi::log::LogSink;
+#ifdef _DEBUG
+	agi::log::log->Subscribe(agi::make_unique<agi::log::EmitSTDOUT>());
+#endif
+       auto conf_local(config::path->Decode("./config.json"));
+       std::unique_ptr<std::istream> localConfig(agi::io::Open(conf_local));
+	config::opt = new agi::Options(conf_local, GET_DEFAULT_CONFIG(default_config));
+
+	// Set config file
+
+	StartupLog("Inside OnInit");
+	try {
+		// Initialize randomizer
+		StartupLog("Initialize random generator");
+		srand(time(nullptr));
+
+		// locale for loading options
+		StartupLog("Set initial locale");
+		setlocale(LC_NUMERIC, "C");
+		setlocale(LC_CTYPE, "C");
+
+
+
+
+
+
+		exception_message = _("Oops, Aegisub has crashed!\n\nAn attempt has been made to save a copy of your file to:\n\n%s\n\nAegisub will now close.");
+
+		// Load plugins
+		Automation4::ScriptFactory::Register(agi::make_unique<Automation4::LuaScriptFactory>());
+		libass::CacheFonts();
+
+		// Load Automation scripts
+		StartupLog("Load global Automation scripts");
+		//config::global_scripts = new Automation4::AutoloadScriptManager(OPT_GET("Path/Automation/Autoload")->GetString());
+		config::global_scripts = new Automation4::AutoloadScriptManager("automation/autoload");
+
+		// Load export filters
+		StartupLog("Register export filters");
+		AssExportFilterChain::Register(agi::make_unique<AssFixStylesFilter>());
+		AssExportFilterChain::Register(agi::make_unique<AssTransformFramerateFilter>());
+
+
+	}
+	catch (agi::Exception const& e) {
+                
+		StartupLog("exception");
+		return false;
+	}
+	catch (std::exception const& e) {
+                
+		StartupLog("exception");
+		return false;
+	}
+
+	StartupLog("Initialization complete");
+	return true;
+}
+
+int AegisubApp::OnExit() {
+	for (auto frame : frames)
+		delete frame;
+	frames.clear();
+
+
+	delete config::opt;
+	cmd::clear();
+
+	delete config::global_scripts;
+
+	AssExportFilterChain::Clear();
+
+	// Keep this last!
+	delete agi::log::log;
+
+	return wxApp::OnExit();
+}
+
+agi::Context& AegisubApp::NewProjectContext() {
+	auto frame = new FrameMain;
+	frame->Bind(wxEVT_DESTROY, [=](wxWindowDestroyEvent& evt) {
+		if (evt.GetWindow() != frame) {
+			evt.Skip();
+			return;
+		}
+
+		frames.erase(remove(begin(frames), end(frames), frame), end(frames));
+		if (frames.empty()) {
+			ExitMainLoop();
+		}
+	});
+	frames.push_back(frame);
+	return *frame->context;
+}
+
+void AegisubApp::CloseAll() {
+	for (auto frame : frames) {
+		if (!frame->Close())
+			break;
+	}
+}
+
+void AegisubApp::UnhandledException(bool stackWalk) {
+#if (!defined(_DEBUG) || defined(WITH_EXCEPTIONS)) && (wxUSE_ON_FATAL_EXCEPTION+0)
+	bool any = false;
+	agi::fs::path path;
+	for (auto& frame : frames) {
+		auto c = frame->context.get();
+		if (!c || !c->ass || !c->subsController) continue;
+
+		path = config::path->Decode("?user/recovered");
+		agi::fs::CreateDirectory(path);
+
+		auto filename = c->subsController->Filename().stem();
+		filename.replace_extension(agi::format("%s.ass", agi::util::strftime("%Y-%m-%d-%H-%M-%S")));
+		path /= filename;
+		c->subsController->Save(path);
+
+		any = true;
+	}
+
+	if (stackWalk)
+		crash_writer::Write();
+
+	if (any) {
+		// Inform user of crash.
+		wxMessageBox(agi::wxformat(exception_message, path), _("Program error"), wxOK | wxICON_ERROR | wxCENTER, nullptr);
+	}
+	else if (LastStartupState) {
+		wxMessageBox(fmt_wx("Aegisub has crashed while starting up!\n\nThe last startup step attempted was: %s.", LastStartupState), _("Program error"), wxOK | wxICON_ERROR | wxCENTER);
+	}
+#endif
+}
+
+void AegisubApp::OnUnhandledException() {
+	UnhandledException(false);
+}
+
+void AegisubApp::OnFatalException() {
+	UnhandledException(true);
+}
+
+#define SHOW_EXCEPTION(str) \
+	wxMessageBox(fmt_tl("An unexpected error has occurred. Please save your work and restart Aegisub.\n\nError Message: %s", str), \
+				"Exception in event handler", wxOK | wxICON_ERROR | wxCENTER | wxSTAY_ON_TOP)
+bool AegisubApp::OnExceptionInMainLoop() {
+	try {
+		throw;
+	}
+	catch (const agi::Exception &e) {
+		SHOW_EXCEPTION(to_wx(e.GetMessage()));
+	}
+	catch (const std::exception &e) {
+		SHOW_EXCEPTION(to_wx(e.what()));
+	}
+	catch (...) {
+		SHOW_EXCEPTION("Unknown error");
+	}
+	return true;
+}
+
+#undef SHOW_EXCEPTION
+
+int AegisubApp::OnRun() {
+	std::string error;
+    std::unique_ptr<agi::Context> context(agi::make_unique<agi::Context>());
+    context->project->LoadSubtitles("./example.ass");
+    std::cout << "start execute command" << std::endl;
+    
+    //cmd::call("haha", NULL);
+    cmd::Command* mycmd = cmd::get("automation/lua/kara-templater/Apply karaoke template");
+    std::cout << "cmd address is " << mycmd << std::endl;
+    try {
+    cmd::call("automation/lua/kara-templater/Apply karaoke template", context.get());
+    }
+    catch(...) {
+      std::cout<<"exception while call cmd" << std::endl;
+    }
+
+    std::cout << "finish execute command" << std::endl;
+      try {
+        context->subsController->Save("./example_out.ass");
+    }
+    catch (const agi::Exception& err) {
+       std::cout << "exception:" << err.GetMessage()<<std::endl;
+    }
+    catch (...) {
+       std::cout << "exception:"<<std::endl;
+    }
+
+
+	try {
+		//return MainLoop();
+	}
+	catch (const std::exception &e) { error = std::string("std::exception: ") + e.what(); }
+	catch (const agi::Exception &e) { error = "agi::exception: " + e.GetMessage(); }
+	catch (...) { error = "Program terminated in error."; }
+
+	// Report errors
+	if (!error.empty()) {
+		crash_writer::Write(error);
+		OnUnhandledException();
+	}
+
+	//ExitMainLoop();
+	return 1;
+}
+
+void AegisubApp::MacOpenFiles(wxArrayString const& filenames) {
+	OpenFiles(filenames);
+}
+
+void AegisubApp::OpenFiles(wxArrayStringsAdapter filenames) {
+	std::vector<agi::fs::path> files;
+	for (size_t i = 0; i < filenames.GetCount(); ++i)
+		files.push_back(from_wx(filenames[i]));
+	if (!files.empty())
+		frames[0]->context->project->LoadList(files);
+}
+
+/*
 namespace config {
 	agi::Options *opt = nullptr;
 	agi::MRUManager *mru = nullptr;
@@ -180,6 +435,7 @@ int AegisubApp::OnExit() {
 }
 
 int main(int argc, char **argv) {
+    gtk_init(&argc, &argv);  
     AegisubApp app;
     app.OnInit();
     std::unique_ptr<agi::Context> context(agi::make_unique<agi::Context>());
@@ -202,7 +458,7 @@ int main(int argc, char **argv) {
     return 0;
 }
 
-
+*/
 /*
 namespace config {
 	agi::Options *opt = nullptr;
