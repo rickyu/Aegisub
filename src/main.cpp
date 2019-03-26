@@ -103,6 +103,33 @@ wxDEFINE_EVENT(EVT_CALL_THUNK, ValueEvent<agi::dispatch::Thunk>);
 /// Message displayed when an exception has occurred.
 static wxString exception_message = "Oops, Aegisub has crashed!\n\nAn attempt has been made to save a copy of your file to:\n\n%s\n\nAegisub will now close.";
 
+
+bool ProcessTemplate(const char* in, const char* out) {
+    std::string error;
+    std::unique_ptr<agi::Context> context(agi::make_unique<agi::Context>());
+    context->project->LoadSubtitles(in);
+    try {
+    cmd::call("automation/lua/kara-templater/Apply karaoke template", context.get());
+    }
+    catch(...) {
+      std::cout<<"exception while call cmd" << std::endl;
+      return false;
+    }
+
+    std::cout << "finish execute command" << std::endl;
+      try {
+        context->subsController->Save(out);
+         return true;
+    }
+    catch (const agi::Exception& err) {
+       std::cout << "exception:" << err.GetMessage()<<std::endl;
+    }
+    catch (...) {
+       std::cout << "exception:"<<std::endl;
+    }
+return false;
+
+}
 /// @brief Gets called when application starts.
 /// @return bool
 bool AegisubApp::OnInit() {
@@ -164,6 +191,15 @@ bool AegisubApp::OnInit() {
 	}
 
 	StartupLog("Initialization complete");
+	auto const& args = argv.GetArguments();
+        if (args.size() != 3) {
+            std::cout << "usage:" << args[0] << " in out" << std::endl;
+        }
+        else {
+            ProcessTemplate(args[1], args[2]);
+        }
+       
+
 	return true;
 }
 
@@ -272,48 +308,7 @@ bool AegisubApp::OnExceptionInMainLoop() {
 #undef SHOW_EXCEPTION
 
 int AegisubApp::OnRun() {
-	std::string error;
-    std::unique_ptr<agi::Context> context(agi::make_unique<agi::Context>());
-    context->project->LoadSubtitles("./example.ass");
-    std::cout << "start execute command" << std::endl;
-    
-    //cmd::call("haha", NULL);
-    cmd::Command* mycmd = cmd::get("automation/lua/kara-templater/Apply karaoke template");
-    std::cout << "cmd address is " << mycmd << std::endl;
-    try {
-    cmd::call("automation/lua/kara-templater/Apply karaoke template", context.get());
-    }
-    catch(...) {
-      std::cout<<"exception while call cmd" << std::endl;
-    }
-
-    std::cout << "finish execute command" << std::endl;
-      try {
-        context->subsController->Save("./example_out.ass");
-    }
-    catch (const agi::Exception& err) {
-       std::cout << "exception:" << err.GetMessage()<<std::endl;
-    }
-    catch (...) {
-       std::cout << "exception:"<<std::endl;
-    }
-
-
-	try {
-		//return MainLoop();
-	}
-	catch (const std::exception &e) { error = std::string("std::exception: ") + e.what(); }
-	catch (const agi::Exception &e) { error = "agi::exception: " + e.GetMessage(); }
-	catch (...) { error = "Program terminated in error."; }
-
-	// Report errors
-	if (!error.empty()) {
-		crash_writer::Write(error);
-		OnUnhandledException();
-	}
-
-	//ExitMainLoop();
-	return 1;
+   return 0;
 }
 
 void AegisubApp::MacOpenFiles(wxArrayString const& filenames) {

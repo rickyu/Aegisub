@@ -63,7 +63,6 @@
 namespace Automation4 {
 	bool CalculateTextExtents(AssStyle *style, std::string const& text, double &width, double &height, double &descent, double &extlead)
 	{
-                std::cout << "CalculateTextExtents::string="<<text<<std::endl;
 		width = height = descent = extlead = 0;
 
 		double fontsize = style->fontsize * 64;

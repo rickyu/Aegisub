@@ -26,6 +26,59 @@
 #include <thread>
 
 namespace {
+
+	class MainQueue final : public agi::dispatch::Queue {
+		void DoInvoke(agi::dispatch::Thunk thunk) override {
+                    thunk();
+ 
+		}
+	};
+
+	class BackgroundQueue final : public agi::dispatch::Queue {
+		void DoInvoke(agi::dispatch::Thunk thunk) override {
+                    thunk();
+		}
+	};
+
+	class SerialQueue final : public agi::dispatch::Queue {
+
+		void DoInvoke(agi::dispatch::Thunk thunk) override {
+                     thunk();
+		}
+	};
+
+}
+
+namespace agi { namespace dispatch {
+
+void Init(std::function<void (Thunk)> invoke_main) {
+}
+void Queue::Async(Thunk thunk) {
+        thunk();
+}
+
+void Queue::Sync(Thunk thunk) {
+       thunk();
+}
+
+Queue& Main() {
+	static MainQueue q;
+	return q;
+}
+
+Queue& Background() {
+	static BackgroundQueue q;
+	return q;
+}
+
+std::unique_ptr<Queue> Create() {
+	return std::unique_ptr<Queue>(new SerialQueue);
+}
+
+} }
+
+/*
+namespace {
 	boost::asio::io_service *service;
 	std::function<void (agi::dispatch::Thunk)> invoke_main;
 	std::atomic<uint_fast32_t> threads_running;
@@ -89,7 +142,6 @@ void Init(std::function<void (Thunk)> invoke_main) {
 		});
 	}
 }
-
 void Queue::Async(Thunk thunk) {
 	DoInvoke([=] {
 		try {
@@ -138,3 +190,4 @@ std::unique_ptr<Queue> Create() {
 }
 
 } }
+*/
