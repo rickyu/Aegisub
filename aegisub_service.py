@@ -117,7 +117,38 @@ def upload_file(path, file_name):
     logger.info('img upload, ret:%s' % ret)
     raise gen.Return(ret)
 
+def add_metadata(path, path_out):
+    import re
+    fp = open(path, 'r')
+    frame = ''
+    lines = []
+    for line in fp:
+        lines.append(line)
+        if line.startswith('Dialogue:'):
+            m = re.search(r'rame\((\d+),(\d+)\)', line)
+            if m == None:
+                continue
+            frame = m.group(1) + '*' + m.group(2)
 
+    if len(frame) == 0:
+        print('frame not find')
+
+
+
+    print(frame)
+    metadata ='[Metadata]\nVideo Size: 1280*720\nFPS: 15\nDuration: {duration}\nFrame Size:{frame}\n'.format(frame=frame, duration=2000)
+    fp_out = open(path_out, 'w')
+    for line in lines:
+        fp_out.write(line)
+        if line.startswith('Video Zoom:'):
+            fp_out.write('\n')
+            fp_out.write(metadata)
+
+
+
+
+    #fp.seek(2, 0)
+    fp_out.close()
 class GenAssHandler(tornado.web.RequestHandler):
 
     @gen.coroutine
@@ -125,6 +156,7 @@ class GenAssHandler(tornado.web.RequestHandler):
         obj = json.loads(self.request.body)
         nickname = obj['nickname']
         ass_url = obj['ass_url']
+        print(obj)
         ass_body = yield async_post(ass_url, retjson=False, method='GET')
         ass_body = ass_body.decode('utf-8')
         
@@ -132,8 +164,11 @@ class GenAssHandler(tornado.web.RequestHandler):
         path_in = ass_url.split('/')[-1]
         open(path_in, 'wb').write(ass_body.encode('utf-8'))
         path_out = path_in + '_out.ass'
-        subprocess.call(['src/aegisub',path_in,path_out])
-        ret = yield upload_file(path_out, 'a.ass')
+        subprocess.call(['bin/aegisub',path_in,path_out])
+        print('path_out='+path_out)
+        path_out_with_meta = path_out + '_meta.ass'
+        add_metadata(path_out, path_out_with_meta )
+        ret = yield upload_file(path_out_with_meta, 'a.ass')
         self.jsonify(ret)
 
     def jsonify(self, response):
@@ -144,7 +179,7 @@ class GenAssHandler(tornado.web.RequestHandler):
 
 def make_app():
     return tornado.web.Application([
-        (r"/genass", GenAssHandler),
+        (r"/aegisub/httpapi/genass", GenAssHandler),
     ])
 
 if __name__ == "__main__":
