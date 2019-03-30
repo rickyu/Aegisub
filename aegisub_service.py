@@ -7,8 +7,11 @@ from tornado.httpclient import AsyncHTTPClient
 import json
 import logging
 import base64
-logger = logging.Logger("MIN")
 import subprocess
+from tornado.process import Subprocess as Tornadosubprocess 
+
+
+logger = logging.Logger("MIN")
 # async http call method
 @gen.coroutine
 def async_post(url, params=None, retjson=True, retcodesuccess=True, data=None, method='POST', headers=None,
@@ -164,7 +167,9 @@ class GenAssHandler(tornado.web.RequestHandler):
         path_in = ass_url.split('/')[-1]
         open(path_in, 'wb').write(ass_body.encode('utf-8'))
         path_out = path_in + '_out.ass'
-        subprocess.call(['bin/aegisub',path_in,path_out])
+        proc = Tornadosubprocess(['bin/aegisub', path_in, path_out])
+        ret = yield proc.wait_for_exit()
+        #subprocess.call(['bin/aegisub',path_in,path_out])
         print('path_out='+path_out)
         path_out_with_meta = path_out + '_meta.ass'
         add_metadata(path_out, path_out_with_meta )
