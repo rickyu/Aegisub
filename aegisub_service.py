@@ -136,20 +136,18 @@ def add_metadata(path, path_out):
     if len(frame) == 0:
         print('frame not find')
 
-
-
-    print(frame)
-    metadata ='[Metadata]\nVideo Size: 1280*720\nFPS: 15\nDuration: {duration}\nFrame Size:{frame}\n'.format(frame=frame, duration=2000)
+    metadata ='[Metadata]\nVideo Size: 1280*720\nFPS: 15\nDuration: {duration}\nFrame Size:{frame}\n\n'.format(frame=frame, duration=4000)
     fp_out = open(path_out, 'w')
+    meta_writed = False
     for line in lines:
-        fp_out.write(line)
-        if line.startswith('Video Zoom:'):
+        if line.startswith('[V4+ Styles]'):
             fp_out.write('\n')
             fp_out.write(metadata)
-
-
-
-
+            meta_writed = True
+        fp_out.write(line)
+    if not meta_writed:
+        fp_out.write('\n')
+        fp_out.write(metadata)
     #fp.seek(2, 0)
     fp_out.close()
 class GenAssHandler(tornado.web.RequestHandler):
@@ -159,18 +157,20 @@ class GenAssHandler(tornado.web.RequestHandler):
         obj = json.loads(self.request.body)
         nickname = obj['nickname']
         ass_url = obj['ass_url']
-        print(obj)
+        config = obj.get('config', {})
+        if config is None:
+            config = {}
         ass_body = yield async_post(ass_url, retjson=False, method='GET')
         ass_body = ass_body.decode('utf-8')
-        
-        ass_body = ass_body.replace('{__nickname__}', nickname)
+        new_nickname = self.compose_nickname(config, nickname)
+        ass_body = ass_body.replace('{__nickname__}', new_nickname)
         path_in = ass_url.split('/')[-1]
         open(path_in, 'wb').write(ass_body.encode('utf-8'))
         path_out = path_in + '_out.ass'
         proc = Tornadosubprocess(['bin/aegisub', path_in, path_out])
         ret = yield proc.wait_for_exit()
         #subprocess.call(['bin/aegisub',path_in,path_out])
-        print('path_out='+path_out)
+        print('path_out='+path_out, ',config:',config)
         path_out_with_meta = path_out + '_meta.ass'
         add_metadata(path_out, path_out_with_meta )
         ret = yield upload_file(path_out_with_meta, 'a.ass')
@@ -181,6 +181,19 @@ class GenAssHandler(tornado.web.RequestHandler):
         self.set_header('Content-Type', 'application/json; charset=utf-8')
         self.write(response)
         self.finish()
+
+    def compose_nickname(self, config, nickname):
+        """Comment: 0,0:00:00.00,0:00:04.00,Romaji,,0,0,0,karaoke,{\k40} 我{\k40}最 {\k40}炫 {\k40}酷 {\k40}右 {\k40}耶 {\k40}耶"""
+        ss = ''
+        #comment = 'Comment: 0,0:00:00.00,0:00:04.00,Romaji,,0,0,0,karaoke,'
+        for w in nickname:
+           ss += config.get('prefix', '')
+           ss += w
+        #comment += ss
+        return ss
+        
+        
+        
 
 def make_app():
     return tornado.web.Application([
